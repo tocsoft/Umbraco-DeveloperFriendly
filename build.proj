@@ -1,0 +1,75 @@
+<Project  DefaultTargets="AfterBuild" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    
+    <PropertyGroup>
+        <Version>0.1.0</Version>
+
+
+        <Configuration Condition="'$(Configuration)'==''" >Release</Configuration>
+        <BuildFolderFull>bin\full</BuildFolderFull>
+        <NugetBuildFolder>bin\NugetPackage</NugetBuildFolder>
+        <BuildFolderClient>bin\client</BuildFolderClient>
+        <IncludeSymbols>False</IncludeSymbols>
+        <BuildFolderRelativeToProjects>..\build\$(BuildFolder)</BuildFolderRelativeToProjects>
+        <BuildFolderAbsolutePath>$(MSBuildProjectDirectory)\build</BuildFolderAbsolutePath>
+        <BuildFolderAbsolutePathOutput>$(BuildFolderAbsolutePath)\bin</BuildFolderAbsolutePathOutput>
+        <NugetBuildFolderAbsolutePath>$(BuildFolderAbsolutePath)\$(NugetBuildFolder)</NugetBuildFolderAbsolutePath>
+
+        <NuspecFileName>Umbraco-DeveloperFriendly.nuspec</NuspecFileName>
+        <NuspecFilePath>$(MSBuildProjectDirectory)\$(NuspecFileName)</NuspecFilePath>
+        <NugetDllFolder>$(NugetBuildFolderAbsolutePath)\lib\net40</NugetDllFolder>
+    </PropertyGroup>
+
+    <Target Name="Build" DependsOnTargets="CompileProjects">
+        <Message Text="Build finished" />
+    </Target>
+
+
+
+    <Target Name="Package" DependsOnTargets="Build">
+
+        <ItemGroup>
+            <OutputAssemblies Include="$(BuildFolderAbsolutePathOutput)\DeveloperFriendly.dll" />
+        </ItemGroup>
+        
+
+        <MakeDir Directories="$(NugetBuildFolderAbsolutePath)" />
+
+        <MakeDir Directories="$(NugetBuildFolderAbsolutePath)\lib" />
+
+
+        <Copy SourceFiles="$(NuspecFilePath)" DestinationFolder="$(NugetBuildFolderAbsolutePath)" />
+
+        <MakeDir Directories="$(NugetDllFolder)" />
+        
+        <Copy SourceFiles="@(OutputAssemblies)" DestinationFolder="$(NugetDllFolder)" />
+        
+        <Exec WorkingDirectory="$(BuildDir)" Command=".nuget\NuGet.exe pack  &quot;$(NugetBuildFolderAbsolutePath)\$(NuspecFileName)&quot; -Symbols -OutputDir &quot;$(BuildFolderAbsolutePath)&quot; -Version &quot;$(Version)&quot;" />
+
+    </Target>
+
+    <Target Name="Clean">
+
+        <ItemGroup>
+            <AllFilesInBuild Include="$(MSBuildProjectDirectory)\build\bin\**\*" />
+            <FoldersFilesInBuild Include="$(MSBuildProjectDirectory)\build\bin\**" />
+        </ItemGroup>
+        <Delete Files="AllFilesInBuild" />
+        <RemoveDir Directories="@(FoldersFilesInBuild)" />
+        <RemoveDir Directories="build\bin" ContinueOnError="true" />      
+    </Target>
+
+
+    <Target Name="CompileProjects" DependsOnTargets="Clean">
+        <!-- For UseWPP_CopyWebApplication=True see http://stackoverflow.com/questions/1983575/copywebapplication-with-web-config-transformations -->
+        <MSBuild Projects="DeveloperFriendly\DeveloperFriendly.csproj" Properties="WarningLevel=0;Configuration=$(Configuration);UseWPP_CopyWebApplication=True;PipelineDependsOnBuild=False;OutDir=$(BuildFolderAbsolutePathOutput);" Targets="Build;" BuildInParallel="False" ToolsVersion="4.0" UnloadProjectsOnCompletion="False" />
+
+        <Message Text="Finished compiling projects" Importance="high" />
+    </Target>
+
+
+    <Target Name="AfterBuild"  DependsOnTargets="Build">
+        
+        
+        
+    </Target>
+</Project>

@@ -39,6 +39,8 @@ obj/
 [Rr]elease*/
 Ankh.NoLoad
 
+/build/
+
 #Tooling
 _ReSharper*/
 *.resharper
