@@ -12,6 +12,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{7DB98E
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{33F95F1E-9272-4495-AF73-E720A30B1CAC}"
+	ProjectSection(SolutionItems) = preProject
+		build.proj = build.proj
+		Umbraco-DeveloperFriendly.nuspec = Umbraco-DeveloperFriendly.nuspec
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

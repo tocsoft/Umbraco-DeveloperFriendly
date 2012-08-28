@@ -102,8 +102,8 @@ namespace DeveloperFriendly
             {
                toMatch = Document.GetRootDocuments();
             }
-            
-            doc = toMatch.Where(x => umbraco.helper.SpaceCamelCasing(x.Text) == umbraco.helper.SpaceCamelCasing(nodeName)).FirstOrDefault();
+
+            doc = toMatch.Where(x => x.Text.ToAlias() == nodeName.ToAlias()).FirstOrDefault();
             
             if(doc == null)
                 doc = Document.MakeNew(nodeName, docType, User.GetUser(0), parentId);
@@ -169,10 +169,10 @@ namespace DeveloperFriendly
                     xmldoc.LoadXml(xmlNode.OuterXml);
                     var root = xmldoc.SelectSingleNode("//*[@isDoc]");
                     CleanUpXml(root);
-                    var fileName = umbraco.helper.SpaceCamelCasing(d.Text) + ".config";
+                    var fileName = d.Text.ToAlias() + ".config";
                     using (var fs = File.CreateText(Path.Combine(this.storageFolder, fileName)))
                     {
-                        var xml = ToString(xmldoc, 4);
+                        var xml = xmldoc.ToString(4);
 
                         fs.Write(xml);
                         fs.Flush();
@@ -207,19 +207,6 @@ namespace DeveloperFriendly
             }
         }
 
-        private static string ToString(System.Xml.XmlDocument doc, int indentation)
-        {
-            using (var sw = new System.IO.StringWriter())
-            {
-                using (var xw = new System.Xml.XmlTextWriter(sw))
-                {
-                    xw.Formatting = System.Xml.Formatting.Indented;
-                    xw.Indentation = indentation;
-                    doc.Save(xw);
-                   // node.WriteTo(xw);
-                }
-                return sw.ToString();
-            }
-        }
+        
     }
 }

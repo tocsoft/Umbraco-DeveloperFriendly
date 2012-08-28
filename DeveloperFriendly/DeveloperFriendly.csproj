@@ -182,6 +182,7 @@
   <ItemGroup>
     <Compile Include="BaseTypeSyncer.cs" />
     <Compile Include="ContentSyncer.cs" />
+    <Compile Include="DataTypeSyncer.cs" />
     <Compile Include="MemberTypeSerializer.cs" />
     <Compile Include="TemplateSerializer.cs" />
     <Compile Include="MacroSerializer.cs" />

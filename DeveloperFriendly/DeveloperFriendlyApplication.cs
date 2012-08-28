@@ -43,6 +43,7 @@ namespace DeveloperFriendly
                 if (!Directory.Exists(root))
                     Directory.CreateDirectory(root);
 
+                new DataTypeSyncer(root, mode, deleteMissingTypes);
                 new MemberTypeSerializer(root, mode, deleteMissingTypes);
                 new TemplateSerializer(root, mode, deleteMissingTypes);
                 new MacroSerializer(root, mode, deleteMissingTypes);
