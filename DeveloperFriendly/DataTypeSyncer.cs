@@ -17,7 +17,7 @@ namespace DeveloperFriendly
     {
 
         public DataTypeSyncer(string rootFolder, DeveloperFriendly.DeveloperFriendlyApplication.SyncMode mode, bool deleteMissingTypes)
-            : base(Path.Combine(rootFolder, "DataTypes"), mode, deleteMissingTypes)
+            : base(Path.Combine(rootFolder, "DataTypes"), mode, false/*don't delete types from DB not in filesystem*/)
         {
 
 
@@ -39,10 +39,7 @@ namespace DeveloperFriendly
             {
                 action();
             };
-            DataTypeDefinition.AfterNew += (s, e) =>
-            {
-                action();
-            };
+
         }
 
 
@@ -76,7 +73,7 @@ namespace DeveloperFriendly
                 List<string> newValues = node.Element("PreValues").Elements("PreValue").Select(x => x.Attribute("Value").Value).ToList();
                 List<PreValue> toKeep = new List<PreValue>();
 
-                var preValues = PreValues.GetPreValues(dataType.Id).OfType<PreValue>();
+                var preValues = PreValues.GetPreValues(dataType.Id).Values.OfType<PreValue>();
                 var sortOrder = 0;
                 foreach(var nv in newValues)
                 {
@@ -114,28 +111,32 @@ namespace DeveloperFriendly
 
         protected override void DumpConfigs()
         {
-            var allTypes = DataTypeDefinition.GetAll();
-            System.Xml.XmlDocument xmlDoc = new System.Xml.XmlDocument();
-
-            var di = new DirectoryInfo(storageFolder);
-            di.GetFiles().ToList().ForEach(x =>
+            try
             {
-                File.Delete(x.FullName);
-            });
+                var allTypes = DataTypeDefinition.GetAll();
+                System.Xml.XmlDocument xmlDoc = new System.Xml.XmlDocument();
 
-            foreach (var dt in allTypes)
-            {
-                var doc = new XmlDocument();
-                doc.LoadXml(dt.ToXml(xmlDoc).OuterXml);
-                var xml = doc.ToString(4);
-
-                var fileName = dt.Text.ToAlias() + ".config";
-                var file = Path.Combine(storageFolder, fileName);
-                using (var fs = File.CreateText(file))
+                var di = new DirectoryInfo(storageFolder);
+                di.GetFiles().ToList().ForEach(x =>
                 {
-                    fs.Write(xml);
+                    File.Delete(x.FullName);
+                });
+
+                foreach (var dt in allTypes)
+                {
+                    var doc = new XmlDocument();
+                    doc.LoadXml(dt.ToXml(xmlDoc).OuterXml);
+                    var xml = doc.ToString(4);
+
+                    var fileName = dt.Text.ToAlias() + ".config";
+                    var file = Path.Combine(storageFolder, fileName);
+                    using (var fs = File.CreateText(file))
+                    {
+                        fs.Write(xml);
+                    }
                 }
             }
+            catch { }
         }
 
 

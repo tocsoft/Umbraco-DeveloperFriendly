@@ -182,8 +182,16 @@
   <ItemGroup>
     <Compile Include="BaseTypeSyncer.cs" />
     <Compile Include="ContentSyncer.cs" />
+    <Compile Include="Extensions\CMSNodeExtensions.cs" />
+    <Compile Include="MediaSyncer.cs" />
     <Compile Include="DataTypeSyncer.cs" />
     <Compile Include="MemberTypeSerializer.cs" />
+    <Compile Include="PropertyConverters\ContentPickerConverter.cs" />
+    <Compile Include="PropertyConverters\UploadFieldConverter.cs" />
+    <Compile Include="PropertyConverters\MediaPickerConverter.cs" />
+    <Compile Include="PropertyConverters\GeneralConverter.cs" />
+    <Compile Include="PropertyConverters\IPropertyConverter.cs" />
+    <Compile Include="PropertyConverters\MultiNodeTreePickerConverter.cs" />
     <Compile Include="TemplateSerializer.cs" />
     <Compile Include="MacroSerializer.cs" />
     <Compile Include="DeveloperFriendlyApplication.cs" />

@@ -5,6 +5,7 @@ using System.Web;
 using System.Security.Cryptography;
 using System.Text;
 using System.IO;
+using System.Xml.Linq;
 
 namespace DeveloperFriendly
 {
@@ -14,6 +15,20 @@ namespace DeveloperFriendly
             return umbraco.cms.helpers.url.FormatUrl(str).ToLower();
         }
         public static string ToString(this System.Xml.XmlDocument doc, int indentation)
+        {
+            using (var sw = new System.IO.StringWriter())
+            {
+                using (var xw = new System.Xml.XmlTextWriter(sw))
+                {
+                    xw.Formatting = System.Xml.Formatting.Indented;
+                    xw.Indentation = indentation;
+                    doc.Save(xw);
+                    // node.WriteTo(xw);
+                }
+                return sw.ToString();
+            }
+        }
+        public static string ToString(this XDocument doc, int indentation)
         {
             using (var sw = new System.IO.StringWriter())
             {

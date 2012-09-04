@@ -13,6 +13,7 @@ using umbraco.cms.businesslogic.property;
 using umbraco.BusinessLogic.Utils;
 using DeveloperFriendly.PropertyConverters;
 using DeveloperFriendly.Extensions;
+using umbraco.cms.businesslogic.media;
 
 namespace DeveloperFriendly
 {
@@ -21,10 +22,10 @@ namespace DeveloperFriendly
     /// this will output the content as its created but it will only every sync in when there are no content items in tree
     /// </summary>
     
-    internal class ContentSyncer : BaseTypeSyncer
+    internal class MediaSyncer : BaseTypeSyncer
     {
-        public ContentSyncer(string rootFolder, DeveloperFriendly.DeveloperFriendlyApplication.SyncMode mode, bool deleteMissingTypes) :
-            base(Path.Combine(rootFolder, "ContentItems"), mode, deleteMissingTypes)
+        public MediaSyncer(string rootFolder, DeveloperFriendly.DeveloperFriendlyApplication.SyncMode mode, bool deleteMissingTypes) :
+            base(Path.Combine(rootFolder, "MediaItems"), mode, deleteMissingTypes)
         {
         
         }
@@ -33,8 +34,8 @@ namespace DeveloperFriendly
         {
             Dictionary<string, string> dic = new Dictionary<string, string>();
 
-            var allDocs = GetAllDocuments();
-            foreach (var d in allDocs)
+            var allMedia = GetAllMedia();
+            foreach (var d in allMedia)
             {
                 var fileName = d.ConfigFileName();
                 dic.Add(d.Id.ToString(), Path.Combine(storageFolder, fileName));
@@ -42,21 +43,20 @@ namespace DeveloperFriendly
 
             return dic;
         }
-        
-        public IEnumerable<Document> GetAllDocuments() 
+
+        public IEnumerable<Media> GetAllMedia() 
         {
-            var docs = Document.GetRootDocuments();
-            return docs.Union(docs.SelectMany(x => x.GetDescendants().OfType<Document>()));
+            var docs = Media.GetRootMedias();
+            return docs.Union(docs.SelectMany(x => x.GetDescendants().OfType<Media>()));
         }
 
-        
 
         protected override bool Delete(string Id)
         {
             try
             {
                 var id = int.Parse(Id);
-                var doc = new Document(id);
+                var doc = new Media(id);
                 
                 doc.delete();
                 
@@ -68,25 +68,49 @@ namespace DeveloperFriendly
             return false;
         }
 
+
+        private void EnsureUniqueName(CMSNode m, Action callback)
+        {
+            if (m.IsDuplicateName())
+            {
+                //if more than 1 we need to resave with a new name
+                var i = 1;
+
+                //find then next available no dup name                    
+                do
+                {
+                    m.Text = m.Text + " - " + i;
+                    i++;
+                } while (m.IsDuplicateName());
+
+
+                // this will indirectly make AfterSave be called which will cause the media to sync
+                m.Save();
+            }
+            else
+            {
+                // only invoke exporting and dumping if not having the change the name
+                callback();
+            }
+        }
+
         protected override void RegisterChangeEvents(Action action)
         {
-            Document.AfterDelete += (s, e) =>
+            
+            Media.AfterDelete += (s, e) =>
             {
                 action();
             };
-            Document.AfterSave += (s, e) =>
+           
+            Media.AfterSave += (s, e) =>
             {
-                action();
+                EnsureUniqueName((CMSNode)s, action);                
             };
-            Document.AfterNew += (s, e) =>
+            Media.AfterNew += (s, e) =>
             {
-                action();
-            };
-            Document.AfterCopy += (s, e) =>
-            {
-                action();
-            };
-            Document.AfterMove += (s, e) =>
+                EnsureUniqueName((CMSNode)s, action);
+            };            
+            Media.AfterMove += (s, e) =>
             {
                 action();
             };
@@ -107,22 +131,35 @@ namespace DeveloperFriendly
 
                 var docType = root.Attribute("Type").Value;
                 var name = root.Attribute("Name").Value;
-                var template = root.Attribute("Template").Value;
                 var path = root.Attribute("Path").Value;
+                
                 var doc = FindOrGet(path, name, docType);
 
+                
 
-                var dt = DocumentType.GetByAlias(docType);
+                var dt = MediaType.GetByAlias(docType);
                 doc.ContentType = dt;
 
-                doc.GenericProperties.ForEach(p => {
-                    SetProperty(p, root);
-                });
 
-                doc.Publish(new User(0));
+
+                var allProps = doc.GenericProperties;
+
+                var convert = new UploadFieldConverter();//us this so when its loaded in later we use the same test
+                var uploads = allProps.Where(x => convert.CanConvert(x));
+                var otherProps = allProps.Where(x => !convert.CanConvert(x));
+
+                //update file paths first then go and update other properties because upload field goes and auto updates other properties                
+                foreach(var p in uploads){
+                    SetProperty(p, root);
+                };
+                foreach(var p in otherProps){
+                    SetProperty(p, root);
+                };
+
+                doc.Save();
 
             }
-            catch 
+            catch
             {
                 return false;
             }
@@ -153,11 +190,11 @@ namespace DeveloperFriendly
             GetConverter(p).SetProperty(p, root);           
         }
 
-        public static Document Find(string path)
+        public static Media Find(string path)
         {
             IEnumerable<string> parts = path.Split('/').Skip(1);
-            Document item = null;
-            IEnumerable<Document> toCheck = Document.GetRootDocuments();
+            Media item = null;
+            IEnumerable<Media> toCheck = Media.GetRootMedias();
             while (parts.Count() > 0)
             {
                 item = toCheck.Where(x => x.Text.ToAlias() == parts.First()).FirstOrDefault();
@@ -171,11 +208,12 @@ namespace DeveloperFriendly
         }
 
 
-        private Document FindOrGet(string path, string name, string docType)
+        private Media FindOrGet(string path, string name, string docType)
         {
+
             var parent = Find(path);
             var parentId = -1;
-            IEnumerable<Document> toCheck = null;
+            IEnumerable<Media> toCheck = null;
             if (parent != null || path == "/")
             {
                 if (parent != null)
@@ -183,8 +221,9 @@ namespace DeveloperFriendly
                     toCheck = parent.Children;
                     parentId = parent.Id;
                 }
-                else {
-                    toCheck = Document.GetRootDocuments();
+                else
+                {
+                    toCheck = Media.GetRootMedias();
                 }
                 //we should now have the parent doc by now
 
@@ -192,12 +231,13 @@ namespace DeveloperFriendly
 
                 if (doc == null)
                 {
-                    var dt = DocumentType.GetByAlias(docType);
-                    doc = Document.MakeNew(name, dt, new User(0), parentId);
+                    var dt = MediaType.GetByAlias(docType);
+                    doc = Media.MakeNew(name, dt, new User(0), parentId);
                 }
 
                 return doc;
             }
+
             return null;
         }
         
@@ -208,36 +248,38 @@ namespace DeveloperFriendly
             {
                 File.Delete(f);
             }
-            foreach (var d in GetAllDocuments())
+            foreach (var d in GetAllMedia())
             {
                 var fileName = d.ConfigFileName();
-                using (var fs = File.CreateText(Path.Combine(this.storageFolder, fileName)))
+                var path = Path.Combine(this.storageFolder, fileName);
+                try
                 {
-                    var xml = ToXml(d);
+                    using (var fs = File.CreateText(path))
+                    {
+                        var xml = ToXml(d);
 
-                    fs.Write(xml);
-                    fs.Flush();
-                    fs.Close();
+                        fs.Write(xml);
+                        fs.Flush();
+                        fs.Close();
+                    }
+                }
+                catch {
+                    if(File.Exists(path))
+                        File.Delete(path);
                 }
             }
         }
 
-        public string ToXml(Document doc)
+        public string ToXml(Media doc)
         {             
             var parentPath = "/";
             if (doc.ParentId > 0)
                 parentPath = doc.Parent.ConfigPath();
             
-            var templateAlias = "";
-            var tmp = Template.GetTemplate(doc.Template);
-            if(tmp != null)
-            {
-                templateAlias = tmp.Alias;
-            }
+         
             var elm = new XElement("Content",
                     new XAttribute("Type", doc.ContentType.Alias),
                     new XAttribute("Name", doc.Text),
-                    new XAttribute("Template", templateAlias),
                     new XAttribute("Path", parentPath)
                     );
 
