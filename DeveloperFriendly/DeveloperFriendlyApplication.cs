@@ -73,6 +73,11 @@ namespace DeveloperFriendly
                     //sync media first as its more likely going to be a dependency on content then the other way around
                     _syncers.Add(new MediaSyncer(root, mode, deleteMissingTypes));
                     _syncers.Add(new ContentSyncer(root, mode, deleteMissingTypes));
+                    
+                    foreach (var s in _syncers)
+                    {
+                        s.StartWatching();
+                    }
                 }
             }
 

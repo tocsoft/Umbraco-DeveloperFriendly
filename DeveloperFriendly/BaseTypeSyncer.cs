@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.IO;
+using System.Xml.Linq;
 
 namespace DeveloperFriendly
 {
@@ -32,13 +33,29 @@ namespace DeveloperFriendly
             ImportAll(_deleteMissingTypes);
         }
 
+        public void StartWatching()
+        {
+            //only start if needed
+            if ((_mode & DeveloperFriendlyApplication.SyncMode.Inward) == DeveloperFriendlyApplication.SyncMode.Inward && watcher == null)
+            {
+                watcher = new FileSystemWatcher(storageFolder);
+
+                watcher.Created += new FileSystemEventHandler(watcher_Changed);
+                watcher.Changed += new FileSystemEventHandler(watcher_Changed);
+                watcher.Deleted += new FileSystemEventHandler(watcher_Changed);
+                watcher.EnableRaisingEvents = true;
+            }
+        }
+
 
         protected string storageFolder;
         string hashFile;
         FileSystemWatcher watcher;
         bool _deleteMissingTypes;
+        DeveloperFriendly.DeveloperFriendlyApplication.SyncMode _mode;
         public BaseTypeSyncer(string folder, DeveloperFriendly.DeveloperFriendlyApplication.SyncMode mode, bool deleteMissingTypes)
          {
+             _mode = mode;
              storageFolder = folder;
              hashFile = Path.Combine(folder, ".hash");
             
@@ -54,13 +71,6 @@ namespace DeveloperFriendly
 
              if ((mode & DeveloperFriendlyApplication.SyncMode.Inward) == DeveloperFriendlyApplication.SyncMode.Inward)
              {
-                 watcher = new FileSystemWatcher(storageFolder);
-                 
-                 watcher.Created += new FileSystemEventHandler(watcher_Changed);
-                 watcher.Changed += new FileSystemEventHandler(watcher_Changed);
-                 watcher.Deleted += new FileSystemEventHandler(watcher_Changed);
-                 watcher.EnableRaisingEvents = true;
-
                  ImportAll(deleteMissingTypes && !requiresFirstDump);
              }
 
@@ -107,18 +117,18 @@ namespace DeveloperFriendly
             string fileHash = "";
             if (IsHashWrong(out fileHash))
             {
-                var files = Directory.GetFiles(storageFolder, "*.config").ToList();
-                var sucesscount = 0;
+                var docs = LoadDocuments().ToList();
                 var tries = 0;
 
-                while (sucesscount < files.Count && tries < 10)
+                while (docs.Count > 0  && tries < 10)
                 {
-                    sucesscount = 0;
-                    files.ForEach(x =>
-                    {
-                        if (RefreshFromFile(x))
-                            sucesscount++;
-                    });
+                    foreach(var d in docs.ToArray()){
+                        if (RefreshFromXml(d))
+                        {
+                            docs.Remove(d);
+                        }
+                    }
+
                     tries++;
                 }
                 File.WriteAllText(hashFile, fileHash);
@@ -137,7 +147,12 @@ namespace DeveloperFriendly
         protected abstract bool Delete(string alias);
 
         protected abstract void RegisterChangeEvents(Action action);
-        protected abstract bool RefreshFromFile(string FullPath);
+
+        protected abstract bool RefreshFromXml(XDocument doc);
+        protected abstract IEnumerable<XDocument> LoadDocuments();
+        
+
+
         protected abstract void DumpConfigs();
 
         private void DumpConfigFiles()
@@ -158,6 +173,7 @@ namespace DeveloperFriendly
         
         void watcher_Changed(object sender, FileSystemEventArgs e)
         {
+            //ImportAll();
             HttpRuntime.UnloadAppDomain();
         }
 
@@ -174,7 +190,7 @@ namespace DeveloperFriendly
             if (File.Exists(hashFile))
             {
                 var oldHash = File.ReadAllText(hashFile);
-                return hash == oldHash;
+                return hash != oldHash;
             
             }
 

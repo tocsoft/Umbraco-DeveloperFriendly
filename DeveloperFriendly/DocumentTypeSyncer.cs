@@ -38,12 +38,16 @@ namespace DeveloperFriendly
             };
         }
 
+        protected override IEnumerable<XDocument> LoadDocuments()
+        {
+            return Directory.GetFiles(this.storageFolder, "*.config")
+                .Select(x => XDocument.Parse(File.ReadAllText(x)));
 
-        protected override bool RefreshFromFile(string FullPath)
+        }
+        protected override bool RefreshFromXml(XDocument xmlDoc)
         {
             try
             {
-                var xmlDoc = XDocument.Parse(File.ReadAllText(FullPath));
                 dynamic dtXml = new umbraco.MacroEngines.DynamicXml(xmlDoc.Root);
 
                 var docType = DocumentType.GetByAlias((string)dtXml.Info.Alias);
@@ -127,7 +131,7 @@ namespace DeveloperFriendly
 
             var updatedProperties = xmlDoc.Descendants("GenericProperty");
             var updatedPropertiesNames = updatedProperties.Select(x => x.Element("Alias").Value);
-
+           
             var props = PropertyType.GetAll().Where(x => x.ContentTypeId == docType.Id);
 
             var matchingProps = props.Where(x => updatedPropertiesNames.Contains(x.Alias));
@@ -136,7 +140,10 @@ namespace DeveloperFriendly
             var newProperties = updatedProperties.Where(x => !matchingProps.Select(y => y.Alias).Contains(x.Element("Alias").Value));
 
             foreach (var p in toDelete)
+            {
                 p.delete();
+            }
+
             var allDtd = DataTypeDefinition.GetAll();
             var tabs = docType.getVirtualTabs;
             foreach (var p in matchingProps)
@@ -159,10 +166,12 @@ namespace DeveloperFriendly
             foreach (var m in newProperties)
             {
                 var dtd = allDtd.Where(x => x.UniqueId == new Guid(m.Element("Definition").Value)).Single();
-                var p = PropertyType.MakeNew(dtd, docType, m.Element("Name").Value, m.Element("Alias").Value);
+                var p = docType.AddPropertyType(dtd, m.Element("Alias").Value, m.Element("Name").Value);
 
                 p.Description = m.Element("Description").Value;
-                p.TabId = tabs.Where(x => x.Caption == m.Element("Tab").Value).First().Id;
+                var t = tabs.Where(x => x.Caption == m.Element("Tab").Value).FirstOrDefault();
+                if (t != null)
+                    p.TabId = t.Id;
                 p.Mandatory = bool.Parse(m.Element("Mandatory").Value);
                 p.ValidationRegExp = m.Element("Validation").Value;
                 p.Save();

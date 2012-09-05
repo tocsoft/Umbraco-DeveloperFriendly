@@ -42,18 +42,16 @@ namespace DeveloperFriendly
 
         }
 
-
-        protected override bool RefreshFromFile(string FullPath)
+        protected override IEnumerable<XDocument> LoadDocuments()
         {
-//            <?xml version="1.0" encoding="utf-16"?>
-//<DataType Name="Tags" Id="4023e540-92f5-11dd-ad8b-0800200c9a66" Definition="b6b73142-b9c1-4bf8-a16d-e1c23320b549">
-//    <PreValues>
-//        <PreValue Id="4" Value="default" />
-//    </PreValues>
-//</DataType>
+            return Directory.GetFiles(this.storageFolder, "*.config")
+                .Select(x => XDocument.Parse(File.ReadAllText(x)));
+        
+        }
+        protected override bool RefreshFromXml(XDocument xmlDoc)
+        {
             try
             {
-                var xmlDoc = XDocument.Parse(File.ReadAllText(FullPath));
                 dynamic dtXml = new umbraco.MacroEngines.DynamicXml(xmlDoc.Root);
                 var node = xmlDoc.Element("DataType");
                 var name = node.Attribute("Name").Value;

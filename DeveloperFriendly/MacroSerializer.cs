@@ -25,9 +25,15 @@ namespace DeveloperFriendly
         }
 
 
-        protected override bool RefreshFromFile(string FullPath)
+        protected override IEnumerable<XDocument> LoadDocuments()
         {
-            var xmlDoc = XDocument.Parse(File.ReadAllText(FullPath));
+            return Directory.GetFiles(this.storageFolder, "*.config")
+                .Select(x => XDocument.Parse(File.ReadAllText(x)));
+        
+        }
+        protected override bool RefreshFromXml(XDocument xmlDoc)
+        {
+            
             dynamic dtXml = new umbraco.MacroEngines.DynamicXml(xmlDoc.Root);
             // <macro>
             //  <name>Login</name>

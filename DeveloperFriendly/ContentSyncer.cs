@@ -91,14 +91,17 @@ namespace DeveloperFriendly
                 action();
             };
         }
-
-        protected override bool RefreshFromFile(string FullPath)
+        protected override IEnumerable<XDocument> LoadDocuments()
+        {
+            var docs =  Directory.GetFiles(this.storageFolder, "*.config")
+                .Select(x => XDocument.Parse(File.ReadAllText(x)))
+                .OrderBy(x => x.Root.Attribute("Path").Value.Split('/').Count());
+            return docs;
+        }
+        protected override bool RefreshFromXml(XDocument xml)
         {
             try
             {
-                var xmlString = File.ReadAllText(FullPath);
-                XDocument xml = XDocument.Parse(xmlString);
-
                 var root = xml.Root;
                 //DocumentType="Page" 
                 //Name="content Page" 
@@ -155,12 +158,16 @@ namespace DeveloperFriendly
 
         public static Document Find(string path)
         {
+            if (path == "/")
+                return null;
+
             IEnumerable<string> parts = path.Split('/').Skip(1);
             Document item = null;
             IEnumerable<Document> toCheck = Document.GetRootDocuments();
             while (parts.Count() > 0)
             {
                 item = toCheck.Where(x => x.Text.ToAlias() == parts.First()).FirstOrDefault();
+                toCheck = item.Children;
                 parts = parts.Skip(1);
                 if (item == null)
                 {
@@ -211,18 +218,12 @@ namespace DeveloperFriendly
             foreach (var d in GetAllDocuments())
             {
                 var fileName = d.ConfigFileName();
-                using (var fs = File.CreateText(Path.Combine(this.storageFolder, fileName)))
-                {
-                    var xml = ToXml(d);
 
-                    fs.Write(xml);
-                    fs.Flush();
-                    fs.Close();
-                }
+                Save(d, Path.Combine(this.storageFolder, fileName));
             }
         }
 
-        public string ToXml(Document doc)
+        public void Save(Document doc, string filename)
         {             
             var parentPath = "/";
             if (doc.ParentId > 0)
@@ -248,7 +249,7 @@ namespace DeveloperFriendly
             }
             XDocument xml = new XDocument(elm);
 
-            return xml.ToString(4);
+            xml.Save(filename, 4);
         }
 
     }

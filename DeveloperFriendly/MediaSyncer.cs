@@ -115,13 +115,17 @@ namespace DeveloperFriendly
                 action();
             };
         }
-
-        protected override bool RefreshFromFile(string FullPath)
+        protected override IEnumerable<XDocument> LoadDocuments()
+        {
+            return Directory.GetFiles(this.storageFolder, "*.config")
+                .Select(x => XDocument.Parse(File.ReadAllText(x)))
+                .OrderBy(x => x.Root.Attribute("Path").Value.Split('/').Count());
+        
+        }
+        protected override bool RefreshFromXml(XDocument xml)
         {
             try
             {
-                var xmlString = File.ReadAllText(FullPath);
-                XDocument xml = XDocument.Parse(xmlString);
 
                 var root = xml.Root;
                 //DocumentType="Page" 
@@ -192,6 +196,8 @@ namespace DeveloperFriendly
 
         public static Media Find(string path)
         {
+            if (path == "/")
+                return null;
             IEnumerable<string> parts = path.Split('/').Skip(1);
             Media item = null;
             IEnumerable<Media> toCheck = Media.GetRootMedias();
@@ -199,6 +205,7 @@ namespace DeveloperFriendly
             {
                 item = toCheck.Where(x => x.Text.ToAlias() == parts.First()).FirstOrDefault();
                 parts = parts.Skip(1);
+                toCheck = item.Children;
                 if (item == null)
                 {
                     return null;
@@ -254,14 +261,7 @@ namespace DeveloperFriendly
                 var path = Path.Combine(this.storageFolder, fileName);
                 try
                 {
-                    using (var fs = File.CreateText(path))
-                    {
-                        var xml = ToXml(d);
-
-                        fs.Write(xml);
-                        fs.Flush();
-                        fs.Close();
-                    }
+                    Save(d, Path.Combine(this.storageFolder, fileName));
                 }
                 catch {
                     if(File.Exists(path))
@@ -270,7 +270,7 @@ namespace DeveloperFriendly
             }
         }
 
-        public string ToXml(Media doc)
+        public void Save(Media doc, string filename)
         {             
             var parentPath = "/";
             if (doc.ParentId > 0)
@@ -290,7 +290,7 @@ namespace DeveloperFriendly
             }
             XDocument xml = new XDocument(elm);
 
-            return xml.ToString(4);
+            xml.Save(filename, 4);
         }
 
     }
